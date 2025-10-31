@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import {
   Page,
   Layout,
@@ -26,24 +27,31 @@ const LoginPage = () => {
 
     try {
       setLoading(true);
+      console.log("email,password", email, password);
       // Example: call backend authentication API
-    //   const response = await fetch("/api/login", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({ email, password }),
-    //   });
-
-    //   const data = await response.json();
-
-    //   if (response.ok) {
-    //     console.log("Login successful:", data);
-    //     // Redirect to dashboard or save token
-    //     window.location.href = "/dashboard";
-    //   } else {
-    //     setError(data.message || "Invalid credentials.");
-    //   }
+      const res = await axios.post(
+        "http://localhost:8000/user/login",
+        {
+          email,
+          password,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      // console.log("res,data", res);
+      // console.log("status", res.status);
+      if(res.status === 200){
+        // Assuming the response contains a token
+        const { access_token } = res.data.user;
+        localStorage.setItem("authToken", access_token);
+        localStorage.setItem("user", res.data.user);
+        console.log(access_token);
+        
+        // Redirect to dashboard or main app page
         window.location.href = "/createPlugin";
-
+      }
+      // window.location.href = "/createPlugin";
     } catch (err) {
       console.error(err);
       setError("Server error. Try again later.");
@@ -83,9 +91,7 @@ const LoginPage = () => {
                 autoComplete="current-password"
               />
 
-              {error && (
-                <InlineError message={error} fieldID="login-error" />
-              )}
+              {error && <InlineError message={error} fieldID="login-error" />}
 
               <div style={{ marginTop: "1rem", textAlign: "center" }}>
                 <Button

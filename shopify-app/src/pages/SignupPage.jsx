@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import {
   Page,
   Layout,
@@ -14,7 +15,7 @@ import {
 
 const SignupPage = () => {
   const [form, setForm] = useState({
-    emailId: "",
+    email: "",
     password: "",
     shopify_domain: "",
     plan: "Free",
@@ -40,19 +41,23 @@ const SignupPage = () => {
     try {
         console.log("form",form);
         
-    //   const res = await fetch("http://localhost:5000/api/shops/signup", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify(form),
-    //   });
-
-    //   const data = await res.json();
-    //   if (res.ok) {
-    //     setSuccess(data.message);
-    //     setForm({ shopify_domain: "", access_token: "", plan: "Free" });
-    //   } else {
-    //     setError(data.message);
-    //   }
+      const res = await axios.post("http://localhost:8000/user/register", form,{
+        // method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // body: form,
+      });
+      console.log("res,data",res);
+      console.log("status",res.status);
+      
+      // const data =  res.data.json();
+      // console.log(data);
+      
+      if (res.status === 201) {
+        setSuccess(res.data.message);
+        setForm({ shopify_domain: "", access_token: "", plan: "Free" });
+      } else {
+        setError(res.message);
+      }
     } catch (err) {
       setError("Server error. Try again later.");
     } finally {
@@ -77,8 +82,8 @@ const SignupPage = () => {
             <FormLayout>
                 <TextField
                 label="Enter Email"
-                value={form.emailId}
-                onChange={(value) => handleChange("emailId", value)}
+                value={form.email}
+                onChange={(value) => handleChange("email", value)}
                 placeholder="e.g., user@example.com"
               />
               <TextField
