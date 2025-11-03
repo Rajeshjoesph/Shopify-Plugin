@@ -1,8 +1,9 @@
 import mysql2 from 'mysql2';
 import express, { Router } from 'express';
-import connection from './src/config/connection.js';
+import dbConnection from './src/config/connection.js';
 import rootRouter from "./src/rootRouter.js"
 import cors from 'cors';
+import mongoose from 'mongoose';
 // import dotenv from 'dotenv';
 // dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(
   )
 )
 app.use(rootRouter);
+dbConnection();
 app.get('/', (req, res) => {
   res.send('Hello World!');
 });

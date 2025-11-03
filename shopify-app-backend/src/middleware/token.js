@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
-import db from "../config/connection.js";
+import mongoose from "mongoose";
+import shopsModel from "../controllor/user/userModule.js";
+// import db from "../config/connection.js";
 const SECRET_KEY = "mysecretkey";
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -15,37 +17,40 @@ const generateAccessToken = (user) => {
 // console.log(generateAccessToken({"email":"rajeshkannan123@gmail.com",
 // "shopify_domain":"www.rajeshkannan123.com",}));
 
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   try {
     let token = req.headers["authorization"];
     if (!token) return res.status(401).json({ message: "Access Denied" });
-    console.log(token);
+    // console.log(token);
 
     token = token.replace("Bearer ", "");
 
     const verified = jwt.verify(token, SECRET_KEY);
+    // console.log("verified",verified);
+    
     const { email, shopify_domain } = verified;
-    const query = `SELECT * FROM shops WHERE email = ? AND shopify_domain = ?
-  `;
-    db.query(query, [email, shopify_domain], (err, results) => {
-      if (err) {
-        // console.error(err);
-        return res.status(500).json({ message: "Server error" });
-      }
-      if (results.length === 0) {
-        return res.status(401).json({ message: "Access Denied" });
-      }
-      req.user = results[0];
-      // console.log("results",req.user);
+    // console.log(email, shopify_domain);
+    
 
-      return next();
-    });
-    req.shop = { email, shopify_domain };
-    // console.log("token:", verified);
-
-    if (!verified) {
+      if (!verified) {
       return res.status(401).json({ message: "Access Denied" });
     }
+
+    const verifyShop = await shopsModel.findOne({ email, shopify_domain });
+
+    // console.log(verifyShop);
+    
+
+    if (!verifyShop) {
+      return res.status(401).json({ message: "Access Denied" });
+    }
+    
+    req.user=verifyShop;
+    // console.log(verifyShop.tree,"verified");
+    
+    next();
+
+  
   } catch (error) {
     return res.json({
       message: error.message,

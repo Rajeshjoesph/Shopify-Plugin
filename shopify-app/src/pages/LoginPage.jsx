@@ -39,13 +39,13 @@ const LoginPage = () => {
           headers: { "Content-Type": "application/json" },
         }
       );
-      // console.log("res,data", res);
-      // console.log("status", res.status);
+      console.log("res,data", res);
+      console.log("status", res.status);
       if(res.status === 200){
         // Assuming the response contains a token
-        const { access_token } = res.data.user;
+        const { access_token } = res.data.shop;
         localStorage.setItem("authToken", access_token);
-        localStorage.setItem("user", res.data.user);
+        localStorage.setItem("user", res.data.shop);
         console.log(access_token);
         
         // Redirect to dashboard or main app page

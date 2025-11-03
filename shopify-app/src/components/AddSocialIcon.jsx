@@ -29,7 +29,7 @@ const availableIcons = {
   Pinterest: <FaPinterestP />,
 };
 
-function AddSocialIcon() {
+const AddSocialIcon = () => {
   const [socialIcons, setSocialIcons] = useState([
     {
       id: 1,
@@ -38,8 +38,11 @@ function AddSocialIcon() {
       tooltip: "Visit Facebook",
       color: "#1877F2",
       clicks: 0,
+      display_order: 1,
+      is_active: true,
     },
   ]);
+  console.log(socialIcons);
 
   const [selectedPosition, setSelectedPosition] = useState("left");
   const [newIcon, setNewIcon] = useState({
@@ -47,6 +50,8 @@ function AddSocialIcon() {
     link: "",
     tooltip: "",
     color: "#000000",
+    display_order: 1,
+    is_active: true,
   });
 
   const [editIcon, setEditIcon] = useState(null);
@@ -55,13 +60,91 @@ function AddSocialIcon() {
   // ➕ Add icon
   const handleAddIcon = () => {
     if (!newIcon.link.trim()) return;
-    setSocialIcons([...socialIcons, { ...newIcon, id: Date.now(), clicks: 0 }]);
-    setNewIcon({ name: "Facebook", link: "", tooltip: "", color: "#000000" });
+
+    // 1️⃣ Check if this icon (by name) already exists
+    const existing = socialIcons.find((icon) => icon.name === newIcon.name);
+
+    if (existing) {
+      // 2️⃣ If it exists but inactive → reactivate and update its data
+      if (!existing.is_active) {
+        const updatedIcons = socialIcons.map((icon) =>
+          icon.id === existing.id
+            ? {
+                ...icon,
+                ...newIcon,
+                is_active: true,
+                display_order:
+                  Math.max(
+                    0,
+                    ...socialIcons
+                      .filter((i) => i.is_active)
+                      .map((i) => i.display_order)
+                  ) + 1, // add to the end
+              }
+            : icon
+        );
+
+        setSocialIcons(updatedIcons);
+        console.log("✅ Reactivated icon:", newIcon.name);
+      } else {
+        // 3️⃣ If already active → optional: show alert or ignore
+        console.log("⚠️ Icon already active:", newIcon.name);
+      }
+    } else {
+      // 4️⃣ If no existing icon → add new one
+      const nextOrder =
+        socialIcons.filter((icon) => icon.is_active).length > 0
+          ? Math.max(
+              ...socialIcons
+                .filter((icon) => icon.is_active)
+                .map((icon) => icon.display_order)
+            ) + 1
+          : 1;
+
+      const newEntry = {
+        ...newIcon,
+        id: Date.now(),
+        clicks: 0,
+        display_order: nextOrder,
+        is_active: true,
+      };
+
+      setSocialIcons([...socialIcons, newEntry]);
+      console.log("🆕 Added new icon:", newIcon.name);
+    }
+
+    // Reset form
+    setNewIcon({
+      name: "Facebook",
+      link: "",
+      tooltip: "",
+      color: "#000000",
+      display_order: 1,
+    });
   };
 
   // 🗑 Delete icon
   const handleDelete = (id) => {
-    setSocialIcons(socialIcons.filter((icon) => icon.id !== id));
+    const updatedIcons = socialIcons.map((icon) =>
+      icon.id === id ? { ...icon, is_active: false } : icon
+    );
+
+    // Re-index only active ones
+    const activeIcons = updatedIcons
+      .filter((icon) => icon.is_active)
+      .map((icon, index) => ({
+        ...icon,
+        display_order: index + 1,
+      }));
+
+    const finalIcons = [
+      ...activeIcons,
+      ...updatedIcons.filter((icon) => !icon.is_active),
+    ];
+
+    setSocialIcons(finalIcons);
+
+    console.log("🗑 Deactivated icon ID:", id);
   };
 
   // ✏️ Edit icon
@@ -72,9 +155,7 @@ function AddSocialIcon() {
 
   const handleSaveEdit = () => {
     setSocialIcons(
-      socialIcons.map((icon) =>
-        icon.id === editIcon.id ? editIcon : icon
-      )
+      socialIcons.map((icon) => (icon.id === editIcon.id ? editIcon : icon))
     );
     setIsModalOpen(false);
   };
@@ -91,10 +172,26 @@ function AddSocialIcon() {
   // 🔁 Drag & Drop reorder
   const handleOnDragEnd = (result) => {
     if (!result.destination) return;
+
     const items = Array.from(socialIcons);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    setSocialIcons(items);
+
+    // 🧩 Update display_order for each icon based on new position
+    const updatedItems = items.map((item, index) => ({
+      ...item,
+      display_order: index + 1, // 1-based order
+    }));
+
+    setSocialIcons(updatedItems);
+
+    console.log(
+      "Updated Display Order:",
+      updatedItems.map((i) => ({
+        name: i.name,
+        display_order: i.display_order,
+      }))
+    );
   };
 
   // 📍 Position dropdown options
@@ -201,70 +298,74 @@ function AddSocialIcon() {
               <Droppable droppableId="socialIcons">
                 {(provided) => (
                   <div {...provided.droppableProps} ref={provided.innerRef}>
-                    {socialIcons.map((icon, index) => (
-                      <Draggable
-                        key={icon.id.toString()}
-                        draggableId={icon.id.toString()}
-                        index={index}
-                      >
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "8px 10px",
-                              background: "#fafafa",
-                              marginBottom: 6,
-                              borderRadius: 6,
-                              ...provided.draggableProps.style,
-                            }}
-                          >
+                    {socialIcons
+                      .filter((icon) => icon.is_active)
+                      .map((icon, index) => (
+                        <Draggable
+                          key={icon.id.toString()}
+                          draggableId={icon.id.toString()}
+                          index={index}
+                        >
+                          {(provided) => (
                             <div
-                              {...provided.dragHandleProps}
-                              style={{
-                                cursor: "grab",
-                                marginRight: 10,
-                                color: "#888",
-                                fontSize: "18px",
-                              }}
-                            >
-                              ☰
-                            </div>
-
-                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
                               style={{
                                 display: "flex",
+                                justifyContent: "space-between",
                                 alignItems: "center",
-                                gap: 8,
-                                flex: 1,
+                                padding: "8px 10px",
+                                background: "#fafafa",
+                                marginBottom: 6,
+                                borderRadius: 6,
+                                ...provided.draggableProps.style,
                               }}
                             >
-                              <span style={{ color: icon.color, fontSize: 20 }}>
-                                {availableIcons[icon.name]}
-                              </span>
-                              <div>
-                                <p style={{ margin: 0 }}>{icon.name}</p>
-                                <small>{icon.link}</small>
+                              <div
+                                {...provided.dragHandleProps}
+                                style={{
+                                  cursor: "grab",
+                                  marginRight: 10,
+                                  color: "#888",
+                                  fontSize: "18px",
+                                }}
+                              >
+                                ☰
+                              </div>
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  flex: 1,
+                                }}
+                              >
+                                <span
+                                  style={{ color: icon.color, fontSize: 20 }}
+                                >
+                                  {availableIcons[icon.name]}
+                                </span>
+                                <div>
+                                  <p style={{ margin: 0 }}>{icon.name}</p>
+                                  <small>{icon.link}</small>
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", gap: 5 }}>
+                                <Button
+                                  icon={EditIcon}
+                                  onClick={() => handleEdit(icon)}
+                                />
+                                <Button
+                                  icon={DeleteIcon}
+                                  onClick={() => handleDelete(icon.id)}
+                                />
                               </div>
                             </div>
-
-                            <div style={{ display: "flex", gap: 5 }}>
-                              <Button
-                                icon={EditIcon}
-                                onClick={() => handleEdit(icon)}
-                              />
-                              <Button
-                                icon={DeleteIcon}
-                                onClick={() => handleDelete(icon.id)}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
+                          )}
+                        </Draggable>
+                      ))}
                     {provided.placeholder}
                   </div>
                 )}
@@ -293,7 +394,9 @@ function AddSocialIcon() {
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
-                    <span style={{ color: icon.color }}>{availableIcons[icon.name]}</span>
+                    <span style={{ color: icon.color }}>
+                      {availableIcons[icon.name]}
+                    </span>
                     <span>{icon.name}</span>
                   </div>
                   <strong>{icon.clicks}</strong>
@@ -324,19 +427,21 @@ function AddSocialIcon() {
               gap: 15,
             }}
           >
-            {socialIcons.map((icon) => (
-              <Tooltip key={icon.id} content={icon.tooltip}>
-                <a
-                  href={icon.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: icon.color, fontSize: 28 }}
-                  onClick={() => handleClickIcon(icon.id)}
-                >
-                  {availableIcons[icon.name]}
-                </a>
-              </Tooltip>
-            ))}
+            {socialIcons
+              .filter((icon) => icon.is_active)
+              .map((icon) => (
+                <Tooltip key={icon.id} content={icon.tooltip}>
+                  <a
+                    href={icon.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: icon.color, fontSize: 28 }}
+                    onClick={() => handleClickIcon(icon.id)}
+                  >
+                    {availableIcons[icon.name]}
+                  </a>
+                </Tooltip>
+              ))}
           </div>
         </div>
       </div>
@@ -350,7 +455,9 @@ function AddSocialIcon() {
           content: "Save",
           onAction: handleSaveEdit,
         }}
-        secondaryActions={[{ content: "Cancel", onAction: () => setIsModalOpen(false) }]}
+        secondaryActions={[
+          { content: "Cancel", onAction: () => setIsModalOpen(false) },
+        ]}
       >
         <Modal.Section>
           {editIcon && (
@@ -372,7 +479,9 @@ function AddSocialIcon() {
               <TextField
                 label="Tooltip"
                 value={editIcon.tooltip}
-                onChange={(value) => setEditIcon({ ...editIcon, tooltip: value })}
+                onChange={(value) =>
+                  setEditIcon({ ...editIcon, tooltip: value })
+                }
               />
               <div style={{ marginTop: 10 }}>
                 <label style={{ fontWeight: "500" }}>Color</label>
@@ -397,6 +506,6 @@ function AddSocialIcon() {
       </Modal>
     </AppProvider>
   );
-}
+};
 
 export default AddSocialIcon;
