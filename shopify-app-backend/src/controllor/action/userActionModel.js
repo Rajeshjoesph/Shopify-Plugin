@@ -36,9 +36,8 @@ const socialLinkSchema = new mongoose.Schema(
   { timestamps: true } // adds createdAt & updatedAt automatically
 );
 
-// Optional: index for faster lookups
-socialLinkSchema.index({ shop_id: 1, platform: 1 });
+// To avoid duplicate icons for the same shop & platform
+socialLinkSchema.index({ shop_id: 1, platform: 1 }, { unique: true });
+const SocialLinkModel = mongoose.model("SocialLink", socialLinkSchema);
 
-const SocialLink = mongoose.model("SocialLink", socialLinkSchema);
-
-export default SocialLink;
+export default SocialLinkModel;

@@ -1,44 +1,54 @@
-import SocialLink from "./userActionModel.js";
+import mongoose from "mongoose";
+import SocialLinkModel from "./userActionModel.js";
+import { json } from "express";
 
-const userAction = (req, res) => {
+const createSocialIcon = async (req, res) => {
   try {
+    // console.log(req.user);
+
+    const { platform, label, url, tooltip, display_order, is_active } =
+      req.body;
     const requireFields = [
-      "platform",
-      "label",
-      "url",
-      "tooltip",
-      "display_order",
-      "is_active",
+      "Facebook",
+      "Instagram",
+      "Twitter",
+      "LinkedIn",
+      "Threads",
+      "Pinterest",
     ];
 
-    const socialLinks = req.body; // array from frontend
-
-    if (!Array.isArray(socialLinks) || socialLinks.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Payload must be a non-empty array" });
+    if (!requireFields.includes(platform)) {
+      res.status(400).json({ message: "Invalid platform name" });
     }
 
-    // Loop through each object
-    for (let i = 0; i < socialLinks.length; i++) {
-      const item = socialLinks[i];
+    const checkFields = await SocialLinkModel.find({
+      shop_id: req.user._id,
+      platform,
+    });
+    console.log(checkFields);
 
-      for (let field of requireFields) {
-        if (
-          item[field] === undefined ||
-          item[field] === null ||
-          item[field] === ""
-        ) {
-          return res.status(400).json({
-            message: `Field '${field}' is required in item ${i + 1}`,
-          });
-        }
-      }
-      item.shop_id = req.user._id; // Attach shop_id from authenticated shop
-
+    if (checkFields.length !== 0) {
+      res.status(400).json({ message: "Already exists" });
     }
 
-    res.status(200).json({ message: "User action accessed successfully", data: socialLinks });
+    const createSocialIcon = await SocialLinkModel.create({
+      shop_id: req.user._id,
+      platform: platform,
+      label: label,
+      url: url,
+      tooltip: tooltip,
+      display_order: display_order,
+      is_active: is_active,
+    });
+
+    if (!createSocialIcon) {
+      res.status(400).json({ message: "not created" });
+    }
+
+    res.status(200).json({
+      message: "User action accessed successfully",
+      data: createSocialIcon,
+    });
   } catch (error) {
     return res.json({
       message: error.message,
@@ -47,4 +57,44 @@ const userAction = (req, res) => {
   }
 };
 
-export { userAction };
+const updateSocialIcon = async (req, res) => {
+  try {
+    const { platformName } = req.query;
+    const { platform, label, url, tooltip, display_order, is_active } =
+      req.body;
+
+    console.log(platform);
+
+    const findSocialIcon = await SocialLinkModel.find({
+      shop_id: req.user._id,
+      platform,
+    });
+    // console.log(findSocialIcon);
+
+    if (findSocialIcon.length === 0) {
+      res.status(400).json({ message: "not found" });
+    }
+    const updateSocialIcon = await SocialLinkModel.findOneAndUpdate(
+      { shop_id: req.user._id, platform },
+      {
+        label,
+        url,
+        tooltip,
+        display_order,
+        is_active,
+      },
+      { new: true } // returns the updated document
+    );
+    console.log(updateSocialIcon);
+
+    if (!updateSocialIcon) {
+      res.status(400).json({ message: "not update" });
+    }
+
+    res.status(200).json({ message: "Update SuccessFully",data:updateSocialIcon });
+  } catch (error) {
+    res.status(500).json({ message: error });
+  }
+};
+
+export { createSocialIcon, updateSocialIcon };
