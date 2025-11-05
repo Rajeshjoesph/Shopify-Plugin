@@ -10,7 +10,7 @@ const socialLinkSchema = new mongoose.Schema(
     platform: {
       type: String,
       required: true,
-      enum: ["Instagram", "Facebook", "Twitter", "LinkedIn", "YouTube", "Other"],
+      
     },
     label: {
       type: String,
@@ -27,6 +27,10 @@ const socialLinkSchema = new mongoose.Schema(
     display_order: {
       type: Number,
       default: 0,
+    },
+    color: {
+      type: String,
+      default: "#000000",
     },
     is_active: {
       type: Boolean,
