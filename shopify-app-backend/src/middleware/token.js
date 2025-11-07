@@ -14,8 +14,8 @@ const generateAccessToken = (user) => {
   );
 };
 
-console.log(generateAccessToken({"email":"rajeshkannan123@gmail.com",
-"shopify_domain":"www.rajeshkannan123.com",}));
+// console.log(generateAccessToken({"email":"rajeshkannan123@gmail.com",
+// "shopify_domain":"www.rajeshkannan123.com",}));
 
 const verifyToken = async (req, res, next) => {
   try {

@@ -6,7 +6,7 @@ const router = express.Router();
 const trackClick = async (req, res) => {
   try {
     const { icon_id, platform } = req.query;
-
+    
     if (!icon_id || !platform) {
       return res.status(400).json({ message: "Missing required fields" });
     }
