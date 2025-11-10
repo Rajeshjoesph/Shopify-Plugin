@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import SocialLinkModel from "./userActionModel.js";
+import settingsModel from "./iconsSettingModel.js";
 import { json } from "express";
 
 // ** Create Social Icon **
@@ -27,29 +28,34 @@ const createSocialIcon = async (req, res) => {
       shop_id: req.user._id,
       platform,
     });
-    // console.log(checkFields.length,checkFields.length !== 0,"kjhkh");
-    let createSocialIcon ;
+    // console.log(checkFields);
+    // return
+    let createSocialIcon;
     if (checkFields.length !== 0) {
-       createSocialIcon = await SocialLinkModel.findOneAndUpdate(
-      { shop_id: req.user._id, platform: platform },
-      {
-        label,
-        url,
-        tooltip,
-        display_order,
-        color,
-        is_active,
-      },
-      { new: true } // returns the updated document
-    );
-    console.log(createSocialIcon);
-    
-    if (!createSocialIcon) {
-      return res.status(400).json({ message: "not created" });
-    }
+      createSocialIcon = await SocialLinkModel.findOneAndUpdate(
+        { shop_id: req.user._id, platform: platform },
+        {
+          label,
+          url,
+          tooltip,
+          display_order,
+          color,
+          is_active,
+        },
+        { new: true } // returns the updated document
+      );
+      console.log(createSocialIcon);
+
+      if (!createSocialIcon) {
+        return res.status(400).json({ message: "not created" });
+      }
+      return res.status(200).json({
+        message: "Icon already exist, so icon updated successfully",
+        data: createSocialIcon,
+      });
     }
 
-     createSocialIcon = await SocialLinkModel.create({
+    createSocialIcon = await SocialLinkModel.create({
       shop_id: req.user._id,
       platform: platform,
       label: label,
@@ -60,10 +66,9 @@ const createSocialIcon = async (req, res) => {
       is_active: is_active,
     });
 
-     if (!createSocialIcon) {
+    if (!createSocialIcon) {
       return res.status(400).json({ message: "not created" });
     }
-    
 
     return res.status(200).json({
       message: "User action accessed successfully",
@@ -126,17 +131,27 @@ const updateSocialIcon = async (req, res) => {
   }
 };
 
+// ** Get All Social Icons **
+// ** =======================
 const getAllSocialIcons = async (req, res) => {
   try {
     const allSocialIcons = await SocialLinkModel.find({
       shop_id: req.user._id,
     });
-    res.status(200).json({ message: "Success", data: allSocialIcons });
+    const settings = await settingsModel.findOne({ shop_id: req.user._id });
+    res
+      .status(200)
+      .json({
+        message: "Success",
+        data: { icons: allSocialIcons, settings: settings },
+      });
   } catch (error) {
     res.status(500).json({ message: error });
   }
 };
 
+// ** Update Reorder Social Icons **
+// ** ==============================
 const updateReorder = async (req, res) => {
   try {
     const icons = req.body.icons; // ✅ correct
@@ -159,8 +174,9 @@ const updateReorder = async (req, res) => {
       res.status(400).json({ message: "not update" });
     }
 
-    const updated = await SocialLinkModel.find({ shop_id: req.user._id })
-  .sort("display_order");
+    const updated = await SocialLinkModel.find({ shop_id: req.user._id }).sort(
+      "display_order"
+    );
 
     res.status(200).json({ message: "Reorder Success", data: updated });
   } catch (error) {
@@ -169,4 +185,63 @@ const updateReorder = async (req, res) => {
     res.status(500).json({ message: error });
   }
 };
-export { createSocialIcon, updateSocialIcon, getAllSocialIcons, updateReorder };
+
+// ** Post icon style **
+// ** =====================
+const postIconStyle = async (req, res) => {
+  try {
+    const {
+      containerPosition,
+      arrangement,
+      iconSize,
+      spacing,
+      borderWidth,
+      borderColor,
+      borderRadius,
+      animation,
+      animationDuration,
+      iconColorMode,
+      globalIconColor,
+    } = req.body;
+
+    if (!containerPosition || !arrangement || !iconSize) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    // ✅ Create or Update in one query
+    const updatedSettings = await settingsModel.findOneAndUpdate(
+      { shop_id: req.user._id }, // where condition
+      {
+        containerPosition,
+        arrangement,
+        iconSize,
+        spacing,
+        borderWidth,
+        borderColor,
+        borderRadius,
+        animation,
+        animationDuration,
+        iconColorMode,
+        globalIconColor,
+      },
+      {
+        new: true, // return updated document
+        upsert: true, // create if not exist
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    return res
+      .status(200)
+      .json({ message: "Icon settings saved", data: updatedSettings });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error });
+  }
+};
+
+export {
+  createSocialIcon,
+  updateSocialIcon,
+  getAllSocialIcons,
+  updateReorder,
+  postIconStyle,
+};

@@ -68,29 +68,36 @@ const AddSocialIcon = () => {
       const { data } = await axios.get(`${API_BASE}userAction/getAllSocialIcons`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const sorted = (data.data || []).sort(
+      console.log("Fetched icons:", data.data);
+
+      const sorted = (data.data.icons || []).sort(
         (a, b) => (a.display_order || 0) - (b.display_order || 0)
       );
       setSocialIcons(sorted);
+      if (data && data.data.settings) {
+        setDesign((d) => ({ ...d, ...data.data.settings }));
+      } else {
+        setDesign((d) => ({ ...d })); // keep defaults
+      }
     } catch (err) {
       console.error("Error fetching icons:", err);
     }
   };
 
-  const fetchDesign = async () => {
-    try {
-      const { data } = await axios.get(`${API_BASE}userAction/getDesignSettings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data && data.data) {
-        setDesign((d) => ({ ...d, ...data.data }));
-      } else {
-        setDesign((d) => ({ ...d })); // keep defaults
-      }
-    } catch (err) {
-      console.warn("No design settings from backend, using defaults.", err);
-    }
-  };
+  // const fetchDesign = async () => {
+  //   try {
+  //     const { data } = await axios.get(`${API_BASE}userAction/getDesignSettings`, {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
+  //     if (data && data.data) {
+  //       setDesign((d) => ({ ...d, ...data.data }));
+  //     } else {
+  //       setDesign((d) => ({ ...d })); // keep defaults
+  //     }
+  //   } catch (err) {
+  //     console.warn("No design settings from backend, using defaults.", err);
+  //   }
+  // };
 
   const countClicks = async () => {
     try {
@@ -109,7 +116,7 @@ const AddSocialIcon = () => {
 
   useEffect(() => {
     fetchIcons();
-    fetchDesign();
+    // fetchDesign();
     countClicks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -117,7 +124,7 @@ const AddSocialIcon = () => {
   // Save design to backend
   const saveDesignSettings = async () => {
     try {
-      await axios.put(`${API_BASE}userAction/updateDesignSettings`, design, {
+      await axios.post(`${API_BASE}userAction/postIconStyle`, design, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setIsDesignDirty(false);
@@ -670,7 +677,7 @@ const AddSocialIcon = () => {
                     <Button
                       plain
                       onClick={() => {
-                        fetchDesign();
+                        fetchIcons();
                         setIsDesignDirty(false);
                       }}
                     >
