@@ -33,18 +33,17 @@ const availableIcons = {
   Pinterest: <FaPinterestP />,
 };
 
-// default global design settings (global to all icons)
 const defaultDesignSettings = {
-  containerPosition: "bottom-right", // top-left | top-center | top-right | bottom-left | bottom-center | bottom-right
-  arrangement: "row", // row | column
-  iconSize: 28, // px
-  spacing: 12, // px
+  containerPosition: "bottom-right",
+  arrangement: "row",
+  iconSize: 28,
+  spacing: 12,
   borderWidth: 0,
   borderColor: "#E5E7EB",
-  borderRadius: 50, // px
-  animation: "none", // none | scale | rotate | pulse
-  animationDuration: 200, // ms
-  iconColorMode: "per-icon", // 'per-icon' or 'global' - screenshot shows "Color" section: this keeps per-icon by default
+  borderRadius: 50,
+  animation: "none",
+  animationDuration: 200,
+  iconColorMode: "per-icon",
   globalIconColor: "#111827",
 };
 
@@ -54,56 +53,46 @@ const AddSocialIcon = () => {
   const [editIcon, setEditIcon] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clickCounts, setClickCounts] = useState({});
-  const [activeTab, setActiveTab] = useState("Design"); // your screenshot shows Design as active by default
+  const [activeTab, setActiveTab] = useState("Design");
   const [design, setDesign] = useState(defaultDesignSettings);
   const [isDesignDirty, setIsDesignDirty] = useState(false);
-
-  // Track which design list section is expanded (to match screenshot style)
   const [expandedSection, setExpandedSection] = useState(null);
-  const toggleSection = (key) => setExpandedSection((s) => (s === key ? null : key));
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
 
-  // --- Backend data operations ---
+  const toggleSection = (key) =>
+    setExpandedSection((s) => (s === key ? null : key));
+  const shopDomain =
+    new URLSearchParams(window.location.search).get("shop") ||
+    window.location.host;
+
   const fetchIcons = async () => {
     try {
-      const { data } = await axios.get(`${API_BASE}userAction/getAllSocialIcons`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("Fetched icons:", data.data);
-
+      const { data } = await axios.get(
+        `${API_BASE}userAction/getAllSocialIcons?shopify_domain=www.rajeshkannan123.com`
+        // ${encodeURIComponent(shopDomain)}
+      );
       const sorted = (data.data.icons || []).sort(
         (a, b) => (a.display_order || 0) - (b.display_order || 0)
       );
+
       setSocialIcons(sorted);
-      if (data && data.data.settings) {
+
+      if (data.data.settings) {
         setDesign((d) => ({ ...d, ...data.data.settings }));
-      } else {
-        setDesign((d) => ({ ...d })); // keep defaults
       }
     } catch (err) {
       console.error("Error fetching icons:", err);
     }
   };
 
-  // const fetchDesign = async () => {
-  //   try {
-  //     const { data } = await axios.get(`${API_BASE}userAction/getDesignSettings`, {
-  //       headers: { Authorization: `Bearer ${token}` },
-  //     });
-  //     if (data && data.data) {
-  //       setDesign((d) => ({ ...d, ...data.data }));
-  //     } else {
-  //       setDesign((d) => ({ ...d })); // keep defaults
-  //     }
-  //   } catch (err) {
-  //     console.warn("No design settings from backend, using defaults.", err);
-  //   }
-  // };
-
   const countClicks = async () => {
     try {
-      const { data } = await axios.get(`${API_BASE}clickAnalytics/click-count`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await axios.get(
+        `${API_BASE}clickAnalytics/click-count`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       const formatted = {};
       (data.data || []).forEach((item) => {
         formatted[item.platform] = item.totalClicks;
@@ -116,12 +105,18 @@ const AddSocialIcon = () => {
 
   useEffect(() => {
     fetchIcons();
-    // fetchDesign();
     countClicks();
+    // add resize listener to auto collapse on small screens
+    const onResize = () => {
+      if (window.innerWidth <= 900) setLeftCollapsed(true);
+      else setLeftCollapsed(false);
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Save design to backend
   const saveDesignSettings = async () => {
     try {
       await axios.post(`${API_BASE}userAction/postIconStyle`, design, {
@@ -134,7 +129,6 @@ const AddSocialIcon = () => {
     }
   };
 
-  // --- Behaviour logic preserved from original code ---
   const handleSaveEdit = async () => {
     try {
       if (editIcon && editIcon._id) {
@@ -146,11 +140,17 @@ const AddSocialIcon = () => {
           }
         );
         const updatedIcon = data?.data || editIcon;
-        setSocialIcons((prev) => prev.map((ic) => (ic._id === updatedIcon._id ? updatedIcon : ic)));
+        setSocialIcons((prev) =>
+          prev.map((ic) => (ic._id === updatedIcon._id ? updatedIcon : ic))
+        );
       } else {
-        const { data } = await axios.post(`${API_BASE}userAction/action`, editIcon, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const { data } = await axios.post(
+          `${API_BASE}userAction/action`,
+          editIcon,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         const createdIcon = data?.data || data;
         setSocialIcons((prev) => [...prev, createdIcon]);
       }
@@ -176,16 +176,26 @@ const AddSocialIcon = () => {
 
   const handleClickIcon = async (icon) => {
     setSocialIcons((prev) =>
-      prev.map((it) => (it._id === icon._id ? { ...it, clicks: (it.clicks || 0) + 1 } : it))
+      prev.map((it) =>
+        it._id === icon._id ? { ...it, clicks: (it.clicks || 0) + 1 } : it
+      )
     );
-    setClickCounts((prev) => ({ ...prev, [icon.platform]: (prev[icon.platform] || 0) + 1 }));
+    setClickCounts((prev) => ({
+      ...prev,
+      [icon.platform]: (prev[icon.platform] || 0) + 1,
+    }));
 
     try {
       await fetch(
-        `${API_BASE}clickAnalytics/track-click?platform=${icon.platform}&icon_id=${icon._id}`,
+        `${API_BASE}clickAnalytics/track-click?platform=${
+          icon.platform
+        }&icon_id=${icon._id}&shopify_domain=${encodeURIComponent(shopDomain)}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ icon_id: icon._id }),
         }
       );
@@ -200,14 +210,21 @@ const AddSocialIcon = () => {
     const [reordered] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reordered);
 
-    const updated = items.map((item, idx) => ({ ...item, display_order: idx + 1 }));
+    const updated = items.map((item, idx) => ({
+      ...item,
+      display_order: idx + 1,
+    }));
     setSocialIcons(updated);
 
     try {
       await axios.put(
         `${API_BASE}userAction/reorder`,
         {
-          icons: updated.map((i) => ({ id: i._id, platform: i.platform, display_order: i.display_order })),
+          icons: updated.map((i) => ({
+            id: i._id,
+            platform: i.platform,
+            display_order: i.display_order,
+          })),
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -216,35 +233,35 @@ const AddSocialIcon = () => {
     }
   };
 
-  // --- Styling/helpers to render "screenshot-like" design panel rows ---
-  const listRow = (label, key) => {
-    const isOpen = expandedSection === key;
-    return (
-      <div
-        onClick={() => toggleSection(key)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 18px",
-          marginBottom: 12,
-          borderRadius: 12,
-          cursor: "pointer",
-          background: isOpen ? "#F0FDF4" : "#fff",
-          boxShadow: isOpen ? "0 2px 8px rgba(16, 185, 129, 0.06)" : "0 1px 2px rgba(0,0,0,0.03)",
-          border: isOpen ? "1px solid rgba(16,185,129,0.08)" : "1px solid #f3f4f6",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 8, height: 8, borderRadius: 8, background: "transparent" }} />
-          <div style={{ fontWeight: 500, color: "#111827" }}>{label}</div>
-        </div>
-        <div style={{ color: "#9CA3AF", fontWeight: 500 }}>{isOpen ? "▴" : "▾"}</div>
-      </div>
-    );
+  // small CSS-in-js responsive helpers (keeps rest of your inline styles pattern)
+  const styles = {
+    page: {
+      display: "flex",
+      flexDirection: "row",
+      height: "100vh",
+      background: "#f6f6f7",
+    },
+    left: {
+      flexBasis: leftCollapsed ? "100%" : "36%",
+      maxWidth: leftCollapsed ? "100%" : 560,
+      padding: 20,
+      background: "#fff",
+      borderRight: leftCollapsed ? "none" : "1px solid #ddd",
+      overflowY: "auto",
+      display: "flex",
+      flexDirection: "column",
+    },
+    right: { flex: 1, padding: 20, minHeight: 0, overflowY: "auto" },
+    headerBar: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    collapseToggle: { display: "inline-flex", alignItems: "center", gap: 8 },
   };
 
-  // compute container style for preview positioning
+  // small helper: compute container style same as before (keeps preview logic)
   const computeContainerStyle = () => {
     const base = {
       position: "absolute",
@@ -255,22 +272,29 @@ const AddSocialIcon = () => {
       justifyContent: "center",
       padding: 8,
       pointerEvents: "auto",
-      // avoid overlaying text too much
     };
-
     const edgePadding = 18;
-
     switch (design.containerPosition) {
       case "top-left":
         return { ...base, top: edgePadding, left: edgePadding };
       case "top-center":
-        return { ...base, top: edgePadding, left: "50%", transform: "translateX(-50%)" };
+        return {
+          ...base,
+          top: edgePadding,
+          left: "50%",
+          transform: "translateX(-50%)",
+        };
       case "top-right":
         return { ...base, top: edgePadding, right: edgePadding };
       case "bottom-left":
         return { ...base, bottom: edgePadding, left: edgePadding };
       case "bottom-center":
-        return { ...base, bottom: edgePadding, left: "50%", transform: "translateX(-50%)" };
+        return {
+          ...base,
+          bottom: edgePadding,
+          left: "50%",
+          transform: "translateX(-50%)",
+        };
       case "bottom-right":
       default:
         return { ...base, bottom: edgePadding, right: edgePadding };
@@ -282,7 +306,10 @@ const AddSocialIcon = () => {
     const bw = design.borderWidth;
     const bc = design.borderColor;
     const br = design.borderRadius;
-    const color = design.iconColorMode === "global" ? design.globalIconColor : icon.color || "#111827";
+    const color =
+      design.iconColorMode === "global"
+        ? design.globalIconColor
+        : icon.color || "#111827";
 
     return {
       color,
@@ -315,53 +342,58 @@ const AddSocialIcon = () => {
     }
   };
 
-  // --- JSX ---
+  // render
   return (
     <AppProvider>
-      <div style={{ display: "flex", height: "100vh", background: "#f6f6f7" }}>
+      <div
+        style={{
+          ...styles.page,
+          flexDirection: leftCollapsed ? "column" : "row",
+        }}
+      >
         {/* LEFT PANEL */}
-        <div
-          style={{
-            width: "35%",
-            padding: 20,
-            background: "#fff",
-            borderRight: "1px solid #ddd",
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
+        <div style={styles.left}>
+          <div style={styles.headerBar}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0 }}>Social icons</h3>
+              <div style={{ fontSize: 13, color: "#6b7280" }}>
+                {socialIcons.filter((i) => i.is_active).length} active
+              </div>
+            </div>
+
+            <div style={styles.collapseToggle}>
+              <Button plain onClick={() => setLeftCollapsed((p) => !p)}>
+                {leftCollapsed ? "Expand" : "Collapse"}
+              </Button>
+            </div>
+          </div>
+
           <Layout.Section oneThird>
             <Card sectioned>
-              {/* Tab header */}
-              <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", marginBottom: 16 }}>
+              <div
+                style={{
+                  display: "flex",
+                  borderBottom: "1px solid #e5e7eb",
+                  marginBottom: 16,
+                }}
+              >
                 <div
                   onClick={() => setActiveTab("Behaviour")}
                   style={{
                     flex: 1,
                     padding: "8px 12px",
                     textAlign: "center",
-                    borderBottom: activeTab === "Behaviour" ? "3px solid #4ADE80" : "none",
+                    borderBottom:
+                      activeTab === "Behaviour" ? "3px solid #4ADE80" : "none",
                     fontWeight: activeTab === "Behaviour" ? 600 : 500,
                     color: activeTab === "Behaviour" ? "#111827" : "#9CA3AF",
-                    background: activeTab === "Behaviour" ? "#F0FDF4" : "transparent",
+                    background:
+                      activeTab === "Behaviour" ? "#F0FDF4" : "transparent",
                     cursor: "pointer",
                     borderTopLeftRadius: 8,
                   }}
                 >
-                  Behaviour{" "}
-                  <span
-                    style={{
-                      background: "#4ADE80",
-                      color: "#fff",
-                      borderRadius: 12,
-                      padding: "0 8px",
-                      fontSize: 12,
-                      marginLeft: 4,
-                    }}
-                  >
-                    {socialIcons.filter((i) => i.is_active).length}
-                  </span>
+                  Behaviour
                 </div>
 
                 <div
@@ -370,10 +402,12 @@ const AddSocialIcon = () => {
                     flex: 1,
                     padding: "8px 12px",
                     textAlign: "center",
-                    borderBottom: activeTab === "Design" ? "3px solid #4ADE80" : "none",
+                    borderBottom:
+                      activeTab === "Design" ? "3px solid #4ADE80" : "none",
                     fontWeight: activeTab === "Design" ? 600 : 500,
                     color: activeTab === "Design" ? "#111827" : "#9CA3AF",
-                    background: activeTab === "Design" ? "#F0FDF4" : "transparent",
+                    background:
+                      activeTab === "Design" ? "#F0FDF4" : "transparent",
                     cursor: "pointer",
                     borderTopRightRadius: 8,
                   }}
@@ -382,17 +416,28 @@ const AddSocialIcon = () => {
                 </div>
               </div>
 
-              {/* BEHAVIOUR content (unchanged) */}
               {activeTab === "Behaviour" && (
                 <>
                   <DragDropContext onDragEnd={handleOnDragEnd}>
                     <Droppable droppableId="iconsList">
                       {(provided) => (
-                        <div {...provided.droppableProps} ref={provided.innerRef} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 12,
+                          }}
+                        >
                           {socialIcons
                             .filter((i) => i.is_active)
                             .map((icon, index) => (
-                              <Draggable key={icon._id} draggableId={icon._id} index={index}>
+                              <Draggable
+                                key={icon._id}
+                                draggableId={icon._id}
+                                index={index}
+                              >
                                 {(provided) => (
                                   <div
                                     ref={provided.innerRef}
@@ -410,10 +455,33 @@ const AddSocialIcon = () => {
                                       ...provided.draggableProps.style,
                                     }}
                                   >
-                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                      <span style={{ cursor: "grab", fontSize: 18, color: "#9CA3AF" }}>⋮⋮</span>
-                                      <div style={{ color: icon.color, fontSize: 20 }}>{availableIcons[icon.platform]}</div>
-                                      <span style={{ fontWeight: 600 }}>{icon.platform}</span>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          cursor: "grab",
+                                          fontSize: 18,
+                                          color: "#9CA3AF",
+                                        }}
+                                      >
+                                        ⋮⋮
+                                      </span>
+                                      <div
+                                        style={{
+                                          color: icon.color,
+                                          fontSize: 20,
+                                        }}
+                                      >
+                                        {availableIcons[icon.platform]}
+                                      </div>
+                                      <span style={{ fontWeight: 600 }}>
+                                        {icon.platform}
+                                      </span>
                                     </div>
                                     <div style={{ display: "flex", gap: 10 }}>
                                       <Button
@@ -424,7 +492,14 @@ const AddSocialIcon = () => {
                                           setIsModalOpen(true);
                                         }}
                                       />
-                                      <Button plain destructive icon={DeleteIcon} onClick={() => handleDelete(icon._id, icon.platform)} />
+                                      <Button
+                                        plain
+                                        destructive
+                                        icon={DeleteIcon}
+                                        onClick={() =>
+                                          handleDelete(icon._id, icon.platform)
+                                        }
+                                      />
                                     </div>
                                   </div>
                                 )}
@@ -466,212 +541,218 @@ const AddSocialIcon = () => {
                 </>
               )}
 
-              {/* DESIGN content styled like your screenshot */}
               {activeTab === "Design" && (
                 <>
-                  {/* Layout row */}
-                  {listRow("Layout", "layout")}
-                  {expandedSection === "layout" && (
-                    <div style={{ padding: "0 6px 12px 6px", marginBottom: 6 }}>
-                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                        <Select
-                          label="Container position"
-                          value={design.containerPosition}
-                          onChange={(v) => {
-                            setDesign((d) => ({ ...d, containerPosition: v }));
-                            setIsDesignDirty(true);
-                          }}
-                          options={[
-                            { label: "Top left", value: "top-left" },
-                            { label: "Top center", value: "top-center" },
-                            { label: "Top right", value: "top-right" },
-                            { label: "Bottom left", value: "bottom-left" },
-                            { label: "Bottom center", value: "bottom-center" },
-                            { label: "Bottom right", value: "bottom-right" },
-                          ]}
-                        />
-                        <Select
-                          label="Arrangement"
-                          value={design.arrangement}
-                          onChange={(v) => {
-                            setDesign((d) => ({ ...d, arrangement: v }));
-                            setIsDesignDirty(true);
-                          }}
-                          options={[
-                            { label: "Row", value: "row" },
-                            { label: "Column", value: "column" },
-                          ]}
-                        />
-                      </div>
+                  {/* Container Position */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>Position</label>
+                    <Select
+                      options={[
+                        { label: "Top Left", value: "top-left" },
+                        { label: "Top Center", value: "top-center" },
+                        { label: "Top Right", value: "top-right" },
+                        { label: "Bottom Left", value: "bottom-left" },
+                        { label: "Bottom Center", value: "bottom-center" },
+                        { label: "Bottom Right", value: "bottom-right" },
+                      ]}
+                      value={design.containerPosition}
+                      onChange={(v) => {
+                        setDesign({ ...design, containerPosition: v });
+                        setIsDesignDirty(true);
+                      }}
+                    />
+                  </div>
+
+                  {/* Arrangement */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>Arrangement</label>
+                    <Select
+                      options={[
+                        { label: "Row", value: "row" },
+                        { label: "Column", value: "column" },
+                      ]}
+                      value={design.arrangement}
+                      onChange={(v) => {
+                        setDesign({ ...design, arrangement: v });
+                        setIsDesignDirty(true);
+                      }}
+                    />
+                  </div>
+
+                  {/* Icon Size */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>
+                      Icon Size ({design.iconSize}px)
+                    </label>
+                    <input
+                      type="range"
+                      min="15"
+                      max="60"
+                      value={design.iconSize}
+                      onChange={(e) => {
+                        setDesign({
+                          ...design,
+                          iconSize: Number(e.target.value),
+                        });
+                        setIsDesignDirty(true);
+                      }}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+
+                  {/* Spacing */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>
+                      Spacing ({design.spacing}px)
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="40"
+                      value={design.spacing}
+                      onChange={(e) => {
+                        setDesign({
+                          ...design,
+                          spacing: Number(e.target.value),
+                        });
+                        setIsDesignDirty(true);
+                      }}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+
+                  {/* Border */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>
+                      Border Width ({design.borderWidth}px)
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="8"
+                      value={design.borderWidth}
+                      onChange={(e) => {
+                        setDesign({
+                          ...design,
+                          borderWidth: Number(e.target.value),
+                        });
+                        setIsDesignDirty(true);
+                      }}
+                      style={{ width: "100%" }}
+                    />
+                    <div style={{ marginTop: 10 }}>
+                      <label>Border Color</label>
+                      <input
+                        type="color"
+                        value={design.borderColor}
+                        onChange={(e) => {
+                          setDesign({ ...design, borderColor: e.target.value });
+                          setIsDesignDirty(true);
+                        }}
+                        style={{ width: "100%", height: 38 }}
+                      />
                     </div>
-                  )}
+                  </div>
 
-                  {/* Color row */}
-                  {listRow("Color", "color")}
-                  {expandedSection === "color" && (
-                    <div style={{ padding: "0 6px 12px 6px", marginBottom: 6 }}>
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{ fontSize: 13, marginBottom: 6, color: "#374151" }}>Icon color mode</div>
-                        <Select
-                          labelHidden
-                          value={design.iconColorMode}
-                          onChange={(v) => {
-                            setDesign((d) => ({ ...d, iconColorMode: v }));
-                            setIsDesignDirty(true);
-                          }}
-                          options={[
-                            { label: "Per icon (use each icon color)", value: "per-icon" },
-                            { label: "Global color for all icons", value: "global" },
-                          ]}
-                        />
-                      </div>
+                  {/* Border Radius */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>
+                      Border Radius ({design.borderRadius}px)
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="80"
+                      value={design.borderRadius}
+                      onChange={(e) => {
+                        setDesign({
+                          ...design,
+                          borderRadius: Number(e.target.value),
+                        });
+                        setIsDesignDirty(true);
+                      }}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
 
-                      {design.iconColorMode === "global" && (
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-                          <input
-                            type="color"
-                            value={design.globalIconColor}
-                            onChange={(e) => {
-                              setDesign((d) => ({ ...d, globalIconColor: e.target.value }));
-                              setIsDesignDirty(true);
-                            }}
-                            style={{ width: 56, height: 40, borderRadius: 8, border: "1px solid #E5E7EB" }}
-                          />
-                          <div style={{ color: "#6B7280" }}>{design.globalIconColor}</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* Animation */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>Hover Animation</label>
+                    <Select
+                      options={[
+                        { label: "None", value: "none" },
+                        { label: "Scale", value: "scale" },
+                        { label: "Rotate", value: "rotate" },
+                        { label: "Pulse", value: "pulse" },
+                      ]}
+                      value={design.animation}
+                      onChange={(v) => {
+                        setDesign({ ...design, animation: v });
+                        setIsDesignDirty(true);
+                      }}
+                    />
+                  </div>
 
-                  {/* Size row */}
-                  {listRow("Size", "size")}
-                  {expandedSection === "size" && (
-                    <div style={{ padding: "0 6px 12px 6px", marginBottom: 6 }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {/* Animation Duration */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>
+                      Animation Duration ({design.animationDuration}ms)
+                    </label>
+                    <input
+                      type="range"
+                      min="100"
+                      max="800"
+                      value={design.animationDuration}
+                      onChange={(e) => {
+                        setDesign({
+                          ...design,
+                          animationDuration: Number(e.target.value),
+                        });
+                        setIsDesignDirty(true);
+                      }}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+
+                  {/* Color Mode */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontWeight: 600 }}>Icon Color Mode</label>
+                    <Select
+                      options={[
+                        { label: "Global", value: "global" },
+                        { label: "Per Icon", value: "per-icon" },
+                      ]}
+                      value={design.iconColorMode}
+                      onChange={(v) => {
+                        setDesign({ ...design, iconColorMode: v });
+                        setIsDesignDirty(true);
+                      }}
+                    />
+                    {design.iconColorMode === "global" && (
+                      <div style={{ marginTop: 10 }}>
+                        <label>Global Icon Color</label>
                         <input
-                          type="range"
-                          min={16}
-                          max={80}
-                          value={design.iconSize}
+                          type="color"
+                          value={design.globalIconColor}
                           onChange={(e) => {
-                            setDesign((d) => ({ ...d, iconSize: parseInt(e.target.value, 10) }));
+                            setDesign({
+                              ...design,
+                              globalIconColor: e.target.value,
+                            });
                             setIsDesignDirty(true);
                           }}
-                          style={{ flex: 1 }}
+                          style={{ width: "100%", height: 38 }}
                         />
-                        <div style={{ width: 56, textAlign: "right", color: "#374151" }}>{design.iconSize}px</div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  {/* Border row */}
-                  {listRow("Border", "border")}
-                  {expandedSection === "border" && (
-                    <div style={{ padding: "0 6px 12px 6px", marginBottom: 6 }}>
-                      <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                        <input
-                          type="number"
-                          min={0}
-                          value={design.borderWidth}
-                          onChange={(e) => {
-                            setDesign((d) => ({ ...d, borderWidth: parseInt(e.target.value || 0, 10) }));
-                            setIsDesignDirty(true);
-                          }}
-                          style={{ width: 80, padding: 8 }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, marginBottom: 6, color: "#374151" }}>Border color</div>
-                          <input
-                            type="color"
-                            value={design.borderColor}
-                            onChange={(e) => {
-                              setDesign((d) => ({ ...d, borderColor: e.target.value }));
-                              setIsDesignDirty(true);
-                            }}
-                            style={{ width: "100%", height: 36, borderRadius: 8, border: "1px solid #E5E7EB" }}
-                          />
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <div style={{ fontSize: 12, color: "#374151" }}>Radius</div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={64}
-                          value={design.borderRadius}
-                          onChange={(e) => {
-                            setDesign((d) => ({ ...d, borderRadius: parseInt(e.target.value, 10) }));
-                            setIsDesignDirty(true);
-                          }}
-                          style={{ flex: 1 }}
-                        />
-                        <div style={{ width: 48, textAlign: "right", color: "#374151" }}>{design.borderRadius}px</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Animations row */}
-                  {listRow("Animations", "animations")}
-                  {expandedSection === "animations" && (
-                    <div style={{ padding: "0 6px 12px 6px", marginBottom: 6 }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                        <Select
-                          labelHidden
-                          value={design.animation}
-                          onChange={(v) => {
-                            setDesign((d) => ({ ...d, animation: v }));
-                            setIsDesignDirty(true);
-                          }}
-                          options={[
-                            { label: "None", value: "none" },
-                            { label: "Scale", value: "scale" },
-                            { label: "Rotate", value: "rotate" },
-                            { label: "Pulse", value: "pulse" },
-                          ]}
-                        />
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 8 }}>
-                          <div style={{ fontSize: 12, color: "#374151" }}>Duration</div>
-                          <input
-                            type="number"
-                            min={50}
-                            value={design.animationDuration}
-                            onChange={(e) => {
-                              setDesign((d) => ({ ...d, animationDuration: parseInt(e.target.value || 0, 10) }));
-                              setIsDesignDirty(true);
-                            }}
-                            style={{ width: 84, padding: 8 }}
-                          />
-                          <div style={{ color: "#6B7280" }}>ms</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Spacing row */}
-                  {listRow("Spacing", "spacing")}
-                  {expandedSection === "spacing" && (
-                    <div style={{ padding: "0 6px 12px 6px", marginBottom: 6 }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <input
-                          type="range"
-                          min={4}
-                          max={48}
-                          value={design.spacing}
-                          onChange={(e) => {
-                            setDesign((d) => ({ ...d, spacing: parseInt(e.target.value, 10) }));
-                            setIsDesignDirty(true);
-                          }}
-                          style={{ flex: 1 }}
-                        />
-                        <div style={{ width: 48, textAlign: "right", color: "#374151" }}>{design.spacing}px</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Save/reset buttons */}
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                    <Button primary onClick={saveDesignSettings} disabled={!isDesignDirty}>
+                  <div style={{ marginTop: 12 }}>
+                    <Button
+                      primary
+                      onClick={saveDesignSettings}
+                      disabled={!isDesignDirty}
+                    >
                       Save design
                     </Button>
                     <Button
@@ -690,11 +771,17 @@ const AddSocialIcon = () => {
           </Layout.Section>
         </div>
 
-        {/* RIGHT PANEL (Preview + Summary) */}
-        <Layout.Section style={{ position: "relative", flex: 1 }}>
-          {/* Click summary */}
+        {/* RIGHT PANEL */}
+        <div style={styles.right}>
           <Card sectioned title="Click Summary">
-            <div style={{ display: "flex", justifyContent: "center", gap: 20, flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 20,
+                flexWrap: "wrap",
+              }}
+            >
               {socialIcons
                 .filter((i) => i.is_active)
                 .sort((a, b) => a.display_order - b.display_order)
@@ -715,15 +802,28 @@ const AddSocialIcon = () => {
                       textAlign: "center",
                     }}
                   >
-                    <div style={{ fontSize: 28, color: icon.color }}>{availableIcons[icon.platform]}</div>
-                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Total Clicks</div>
-                    <div style={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>{clickCounts[icon.platform] || 0}</div>
+                    <div style={{ fontSize: 28, color: icon.color }}>
+                      {availableIcons[icon.platform]}
+                    </div>
+                    <div
+                      style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}
+                    >
+                      Total Clicks
+                    </div>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 18,
+                        color: "#111827",
+                      }}
+                    >
+                      {clickCounts[icon.platform] || 0}
+                    </div>
                   </div>
                 ))}
             </div>
           </Card>
 
-          {/* Live Preview */}
           <Card sectioned>
             <div
               style={{
@@ -735,26 +835,64 @@ const AddSocialIcon = () => {
                 minHeight: 520,
               }}
             >
-              {/* Browser header */}
-              <div style={{ background: "#000", color: "#fff", padding: "8px 16px", display: "flex", alignItems: "center" }}>
+              <div
+                style={{
+                  background: "#000",
+                  color: "#fff",
+                  padding: "8px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
                 <div style={{ display: "flex", gap: 6, marginRight: 12 }}>
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#FF605C" }} />
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#FFBD44" }} />
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#00CA4E" }} />
+                  <div
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: "#FF605C",
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: "#FFBD44",
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: "#00CA4E",
+                    }}
+                  />
                 </div>
                 <span style={{ fontSize: 14 }}>Live preview</span>
               </div>
 
-              {/* preview content area */}
-              <div style={{ background: "#f9fafb", textAlign: "center", padding: "60px 20px", minHeight: 420, position: "relative" }}>
+              <div
+                style={{
+                  background: "#f9fafb",
+                  textAlign: "center",
+                  padding: "60px 20px",
+                  minHeight: 420,
+                  position: "relative",
+                }}
+              >
                 <div style={{ padding: 16 }}>
-                  <h3 style={{ margin: 0, marginBottom: 8 }}>Example content</h3>
+                  <h3 style={{ margin: 0, marginBottom: 8 }}>
+                    Example content
+                  </h3>
                   <p style={{ margin: 0, color: "#6b7280" }}>
-                    Social icons appear using the selected design settings. Change Layout / Size / Border / Animations / Spacing from the Design tab to see changes live.
+                    Social icons appear using the selected design settings.
+                    Change Layout / Size / Border / Animations / Spacing from
+                    the Design tab to see changes live.
                   </p>
                 </div>
 
-                {/* positioned icon container */}
                 <div style={computeContainerStyle()}>
                   {socialIcons
                     .filter((i) => i.is_active)
@@ -768,7 +906,8 @@ const AddSocialIcon = () => {
                           onClick={() => handleClickIcon(icon)}
                           style={getIconStyle(icon)}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = applyHoverTransform();
+                            e.currentTarget.style.transform =
+                              applyHoverTransform();
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.transform = "none";
@@ -782,44 +921,67 @@ const AddSocialIcon = () => {
               </div>
             </div>
           </Card>
-        </Layout.Section>
-      </div>
+        </div>
 
-      {/* Edit Modal (behaviour unchanged) */}
-      <Modal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editIcon?._id ? "Edit Social Icon" : "Add Social Icon"}
-        primaryAction={{ content: "Save", onAction: handleSaveEdit }}
-        secondaryActions={[{ content: "Cancel", onAction: () => setIsModalOpen(false) }]}
-      >
-        <Modal.Section>
-          {editIcon && (
-            <>
-              <Select
-                label="Platform"
-                options={Object.keys(availableIcons).map((name) => ({ label: name, value: name }))}
-                value={editIcon.platform}
-                onChange={(value) => !editIcon._id && setEditIcon({ ...editIcon, platform: value })}
-                disabled={!!editIcon._id}
-              />
-
-              <TextField label="URL" value={editIcon.url} onChange={(value) => setEditIcon({ ...editIcon, url: value })} />
-              <TextField label="Tooltip" value={editIcon.tooltip} onChange={(value) => setEditIcon({ ...editIcon, tooltip: value })} />
-
-              <div style={{ marginTop: 10 }}>
-                <label style={{ fontWeight: 500 }}>Color</label>
-                <input
-                  type="color"
-                  value={editIcon.color}
-                  onChange={(e) => setEditIcon({ ...editIcon, color: e.target.value })}
-                  style={{ width: "100%", height: 40, borderRadius: 6, border: "1px solid #ccc", cursor: "pointer" }}
+        <Modal
+          open={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title={editIcon?._id ? "Edit Social Icon" : "Add Social Icon"}
+          primaryAction={{ content: "Save", onAction: handleSaveEdit }}
+          secondaryActions={[
+            { content: "Cancel", onAction: () => setIsModalOpen(false) },
+          ]}
+        >
+          <Modal.Section>
+            {editIcon && (
+              <>
+                <Select
+                  label="Platform"
+                  options={Object.keys(availableIcons).map((name) => ({
+                    label: name,
+                    value: name,
+                  }))}
+                  value={editIcon.platform}
+                  onChange={(value) =>
+                    !editIcon._id &&
+                    setEditIcon({ ...editIcon, platform: value })
+                  }
+                  disabled={!!editIcon._id}
                 />
-              </div>
-            </>
-          )}
-        </Modal.Section>
-      </Modal>
+                <TextField
+                  label="URL"
+                  value={editIcon.url}
+                  onChange={(value) => setEditIcon({ ...editIcon, url: value })}
+                />
+                <TextField
+                  label="Tooltip"
+                  value={editIcon.tooltip}
+                  onChange={(value) =>
+                    setEditIcon({ ...editIcon, tooltip: value })
+                  }
+                />
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontWeight: 500 }}>Color</label>
+                  <input
+                    type="color"
+                    value={editIcon.color}
+                    onChange={(e) =>
+                      setEditIcon({ ...editIcon, color: e.target.value })
+                    }
+                    style={{
+                      width: "100%",
+                      height: 40,
+                      borderRadius: 6,
+                      border: "1px solid #ccc",
+                      cursor: "pointer",
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </Modal.Section>
+        </Modal>
+      </div>
     </AppProvider>
   );
 };

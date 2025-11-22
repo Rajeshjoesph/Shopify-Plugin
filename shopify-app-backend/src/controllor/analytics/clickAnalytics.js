@@ -1,12 +1,25 @@
 import express from "express";
 import ClickAnalyticsModel from "./clickAnalyticsmodel.js";
+import shopsModel from "../../controllor/user/userModule.js";
 const router = express.Router();
 
 // ➕ Create a new click event
 const trackClick = async (req, res) => {
   try {
-    const { icon_id, platform } = req.query;
+    const { shopify_domain, icon_id, platform } = req.query;
+    if (!shopify_domain) {
+      return res.status(400).json({ message: "shopify_domain is required" });
+    }
+    const verifyShop = await shopsModel.findOne({ shopify_domain });
     
+    req.user = verifyShop;
+    // console.log(req.user);
+    // return
+    
+    // const allSocialIcons = await SocialLinkModel.find({
+    //   shop_id: req.user._id,
+    // });
+
     if (!icon_id || !platform) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -36,7 +49,7 @@ const clickCount = async (req, res) => {
       {
         $match: {
           shop_id: req.user._id,
-        //   createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) },
+          //   createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) },
         },
       },
       {

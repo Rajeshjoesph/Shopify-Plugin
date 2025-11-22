@@ -4,7 +4,7 @@ import {createSocialIcon,updateSocialIcon,getAllSocialIcons,updateReorder,postIc
 const router = Router();
 router.post('/action', verifyToken,createSocialIcon)
 router.put("/updateSocialIcon",verifyToken,updateSocialIcon)
-router.get("/getAllSocialIcons",verifyToken,getAllSocialIcons)
+router.get("/getAllSocialIcons",getAllSocialIcons)
 router.put("/reorder",verifyToken,updateReorder)
 router.post("/postIconStyle",verifyToken,postIconStyle)
 export default router;

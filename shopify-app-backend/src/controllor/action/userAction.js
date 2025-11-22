@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import SocialLinkModel from "./userActionModel.js";
 import settingsModel from "./iconsSettingModel.js";
+import shopsModel from "../../controllor/user/userModule.js";
 import { json } from "express";
 
 // ** Create Social Icon **
@@ -135,16 +136,21 @@ const updateSocialIcon = async (req, res) => {
 // ** =======================
 const getAllSocialIcons = async (req, res) => {
   try {
+    const { shopify_domain } = req.query;
+    if (!shopify_domain) {
+      return res.status(400).json({ message: "shopify_domain is required" });
+    }
+    const verifyShop = await shopsModel.findOne({ shopify_domain });
+
+    req.user = verifyShop;
     const allSocialIcons = await SocialLinkModel.find({
       shop_id: req.user._id,
     });
     const settings = await settingsModel.findOne({ shop_id: req.user._id });
-    res
-      .status(200)
-      .json({
-        message: "Success",
-        data: { icons: allSocialIcons, settings: settings },
-      });
+    res.status(200).json({
+      message: "Success",
+      data: { icons: allSocialIcons, settings: settings },
+    });
   } catch (error) {
     res.status(500).json({ message: error });
   }
